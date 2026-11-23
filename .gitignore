@@ -1,0 +1,34 @@
+# Secrets & local environment
+.env
+.env.*
+*.pem
+*.key
+*_rsa
+*_ed25519
+
+# Python caches & build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# OS & editor
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Intermediate figure lint/preview outputs
+docs/figures/*/fig.lint.*
+docs/figures/*/fig.preview.html

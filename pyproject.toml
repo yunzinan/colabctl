@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling>=1.24.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "colabctl"
+version = "0.2.0"
+description = "Automated multi-account Google Colab GPU launcher, multiplexed SSH manager, VM-side cost-guard CLI and local Web/Chromium dashboard"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "pydantic>=2.9.0",
+    "rich>=13.9.0",
+    "typer>=0.15.0",
+    "uvicorn>=0.32.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.28.0",
+    "pytest>=8.3.0",
+]
+
+[project.scripts]
+colabctl = "colabctl.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yunzinan/colabctl"
+Repository = "https://github.com/yunzinan/colabctl"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/colabctl"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

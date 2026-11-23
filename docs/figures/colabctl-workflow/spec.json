@@ -1,0 +1,438 @@
+{
+  "meta": {
+    "id": "colabctl-fig1",
+    "title": "colabctl v0.2 full-stack architecture and end-to-end workflow",
+    "system": {
+      "name": "colabctl",
+      "one_liner": "Multi-account Google Colab GPU launcher and local Web/Chromium dashboard with pre-warmed single-slot SSH multiplexing and an autonomous VM-side cost-guard watchdog"
+    },
+    "family": "systems",
+    "kind": "architecture",
+    "figure_kind": "request-path",
+    "venue_style": "acm",
+    "column": "double",
+    "width_pt": 504,
+    "max_height_pt": 216,
+    "template": "host-device",
+    "modifiers": [
+      "multi-tier",
+      "control-loop"
+    ],
+    "direction": "left-right",
+    "panels": 1,
+    "palette": "blue-orange",
+    "font": "helvetica",
+    "step_markers": "circled-numbers",
+    "language": "en",
+    "version": 2,
+    "caption_draft": "Figure 1. Full-stack architecture and end-to-end workflow of colabctl. (1) Both the loopback-secured Web/Chromium UI and CLI drive the shared controller; (2) it acquires the multi-account pool lock and provisions a GPU VM (T4/L4/A100/G4/H100) via the Colab Control API (auto-reaping newly leaked orphans on timeout). (3) Over Jupyter WebSocket, colabctl probes GPU/RAM and deploys a detached watchdog.py daemon, then (4) writes an Included ssh_config and pre-warms one ControlMaster SSH-over-WS tunnel. (5) Concurrent terminals, VS Code Remote-SSH, and -L port forwards share this single slot without HTTP 429, while (6) status/extend/guard use a fast no-PTY mux channel (~1s). (7) Inside the VM, the Cost-Guard Watchdog polls GPU (<5%) and PTY I/O every 15s and fires POST $TBE_RUNTIME_ADDR/unassign on idle (30m) or hard deadline (4h) even when the host is offline; (8) stop tears down the mux, unassigns the VM, and removes the SSH alias.",
+    "open_questions": [],
+    "notes": "Dashed strokes are reserved strictly for control/monitoring edges; all three region containers use solid frames. Flat linear Lucide icons are embedded inline inside node groups as data-symbol elements."
+  },
+  "containers": [
+    {
+      "id": "local-host",
+      "label": "Local Host (macOS / Linux)",
+      "kind": "solid",
+      "title_position": "top-left",
+      "role": "existing",
+      "order": 0
+    },
+    {
+      "id": "colab-cloud",
+      "label": "Google Colab Cloud",
+      "kind": "solid",
+      "title_position": "top-left",
+      "role": "external",
+      "order": 1
+    },
+    {
+      "id": "gpu-vm",
+      "label": "Colab Cloud GPU VM",
+      "kind": "solid",
+      "title_position": "top-left",
+      "role": "existing",
+      "order": 2
+    }
+  ],
+  "nodes": [
+    {
+      "id": "web-ui",
+      "label": "Web / Chromium UI",
+      "sublabel": "127.0.0.1 · Token · EN/ZH",
+      "kind": "actor",
+      "parent": "local-host",
+      "role": "novel",
+      "symbol": "lucide:layout-dashboard",
+      "legend_ref": "leg-core",
+      "order": 0
+    },
+    {
+      "id": "cli-clients",
+      "label": "CLI & SSH Clients",
+      "sublabel": "up · ssh · VS Code",
+      "kind": "actor",
+      "parent": "local-host",
+      "role": "existing",
+      "symbol": "lucide:terminal",
+      "legend_ref": "leg-existing",
+      "order": 1
+    },
+    {
+      "id": "colabctl-controller",
+      "label": "colabctl Controller",
+      "sublabel": "reap · sync · jobs",
+      "kind": "module",
+      "parent": "local-host",
+      "role": "novel",
+      "symbol": "lucide:workflow",
+      "legend_ref": "leg-core",
+      "order": 2
+    },
+    {
+      "id": "account-pool",
+      "label": "Multi-Account Pool",
+      "sublabel": "ultra · pro1 · pro2",
+      "kind": "store",
+      "parent": "local-host",
+      "role": "existing",
+      "symbol": "lucide:key-round",
+      "legend_ref": "leg-existing",
+      "order": 3
+    },
+    {
+      "id": "ssh-mux",
+      "label": "SSH Mux & _proxy",
+      "sublabel": "Include ssh_config · ControlMaster · no auto-create",
+      "kind": "module",
+      "parent": "local-host",
+      "role": "novel",
+      "emphasis": "accent",
+      "symbol": "lucide:network",
+      "legend_ref": "leg-safeguard",
+      "order": 4
+    },
+    {
+      "id": "colab-api",
+      "label": "Colab Control API",
+      "sublabel": "/assign · /unassign",
+      "kind": "external",
+      "parent": "colab-cloud",
+      "role": "external",
+      "symbol": "lucide:cloud",
+      "order": 5
+    },
+    {
+      "id": "gpu-runtime",
+      "label": "GPU Runtime",
+      "sublabel": "T4/L4/A100/G4/H100",
+      "kind": "compute",
+      "parent": "gpu-vm",
+      "role": "existing",
+      "symbol": "lucide:cpu",
+      "legend_ref": "leg-existing",
+      "order": 6
+    },
+    {
+      "id": "tbe-hook",
+      "label": "TBE Unassign Hook",
+      "sublabel": "$TBE_ADDR /unassign",
+      "kind": "external",
+      "parent": "gpu-vm",
+      "role": "external",
+      "symbol": "lucide:power",
+      "order": 7
+    },
+    {
+      "id": "vm-sshd",
+      "label": "VM sshd Daemon",
+      "sublabel": "Ed25519 · 1 WS slot",
+      "kind": "module",
+      "parent": "gpu-vm",
+      "role": "existing",
+      "symbol": "lucide:server",
+      "legend_ref": "leg-existing",
+      "order": 8
+    },
+    {
+      "id": "cost-watchdog",
+      "label": "Cost-Guard Watchdog",
+      "sublabel": "GPU <5% · PTY · 4h",
+      "kind": "module",
+      "parent": "gpu-vm",
+      "role": "novel",
+      "emphasis": "accent",
+      "symbol": "lucide:shield-check",
+      "legend_ref": "leg-safeguard",
+      "order": 9
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-web-ctrl",
+      "from": "web-ui",
+      "to": "colabctl-controller",
+      "label": "API / UI",
+      "kind": "data",
+      "style": "solid",
+      "weight": "main",
+      "step": 1,
+      "from_side": "right",
+      "to_side": "left",
+      "legend_ref": "leg-main"
+    },
+    {
+      "id": "e-cli-ctrl",
+      "from": "cli-clients",
+      "to": "colabctl-controller",
+      "label": "up/stop",
+      "kind": "data",
+      "style": "solid",
+      "weight": "main",
+      "from_side": "top",
+      "to_side": "bottom",
+      "legend_ref": "leg-main"
+    },
+    {
+      "id": "e-ctrl-pool",
+      "from": "colabctl-controller",
+      "to": "account-pool",
+      "label": "lock & pick",
+      "kind": "control",
+      "style": "dashed",
+      "weight": "normal",
+      "step": 2,
+      "from_side": "bottom",
+      "to_side": "top",
+      "legend_ref": "leg-control"
+    },
+    {
+      "id": "e-pool-api",
+      "from": "account-pool",
+      "to": "colab-api",
+      "label": "assign / stop",
+      "kind": "control",
+      "style": "dashed",
+      "weight": "normal",
+      "step": 8,
+      "from_side": "right",
+      "to_side": "bottom",
+      "legend_ref": "leg-control"
+    },
+    {
+      "id": "e-api-deploy",
+      "from": "colab-api",
+      "to": "gpu-runtime",
+      "label": "Jupyter WS: probe GPU",
+      "kind": "control",
+      "style": "dashed",
+      "weight": "normal",
+      "step": 3,
+      "from_side": "right",
+      "to_side": "left",
+      "legend_ref": "leg-control"
+    },
+    {
+      "id": "e-api-watchdog",
+      "from": "colab-api",
+      "to": "cost-watchdog",
+      "label": "deploy watchdog.py",
+      "kind": "control",
+      "style": "dashed",
+      "weight": "normal",
+      "from_side": "bottom",
+      "to_side": "top",
+      "legend_ref": "leg-control"
+    },
+    {
+      "id": "e-ctrl-mux",
+      "from": "colabctl-controller",
+      "to": "ssh-mux",
+      "label": "sync & pre-warm",
+      "kind": "data",
+      "style": "solid",
+      "weight": "main",
+      "step": 4,
+      "from_side": "bottom",
+      "to_side": "top",
+      "legend_ref": "leg-main"
+    },
+    {
+      "id": "e-clients-mux",
+      "from": "cli-clients",
+      "to": "ssh-mux",
+      "label": "N× ssh, VS Code, -L",
+      "kind": "data",
+      "style": "solid",
+      "weight": "main",
+      "step": 5,
+      "from_side": "bottom",
+      "to_side": "top",
+      "legend_ref": "leg-main"
+    },
+    {
+      "id": "e-mux-sshd",
+      "from": "ssh-mux",
+      "to": "vm-sshd",
+      "label": "SSH-over-WS (1 slot, zero HTTP 429)",
+      "kind": "data",
+      "style": "solid",
+      "weight": "main",
+      "from_side": "right",
+      "to_side": "left",
+      "legend_ref": "leg-main"
+    },
+    {
+      "id": "e-sshd-gpu",
+      "from": "vm-sshd",
+      "to": "gpu-runtime",
+      "label": "shells · scp · -L 8188",
+      "kind": "data",
+      "style": "solid",
+      "weight": "main",
+      "from_side": "top",
+      "to_side": "bottom",
+      "legend_ref": "leg-main"
+    },
+    {
+      "id": "e-sshd-wd",
+      "from": "vm-sshd",
+      "to": "cost-watchdog",
+      "label": "no-PTY ~1s",
+      "kind": "data",
+      "style": "solid",
+      "weight": "main",
+      "step": 6,
+      "from_side": "right",
+      "to_side": "left",
+      "legend_ref": "leg-main"
+    },
+    {
+      "id": "e-wd-poll",
+      "from": "cost-watchdog",
+      "to": "gpu-runtime",
+      "label": "poll 15s (GPU/PTY)",
+      "kind": "control",
+      "style": "dashed",
+      "weight": "normal",
+      "step": 7,
+      "from_side": "top",
+      "to_side": "bottom",
+      "legend_ref": "leg-control"
+    },
+    {
+      "id": "e-wd-unassign",
+      "from": "cost-watchdog",
+      "to": "tbe-hook",
+      "label": "POST /unassign",
+      "kind": "feedback",
+      "style": "solid",
+      "weight": "main",
+      "from_side": "top",
+      "to_side": "bottom",
+      "legend_ref": "leg-unassign"
+    }
+  ],
+  "steps": [
+    {
+      "n": 1,
+      "attached_to": "e-web-ctrl",
+      "text": "Web/Chromium UI or CLI invokes colabctl controller"
+    },
+    {
+      "n": 2,
+      "attached_to": "e-ctrl-pool",
+      "text": "Acquire pool lock and select primary or pinned account"
+    },
+    {
+      "n": 3,
+      "attached_to": "e-api-deploy",
+      "text": "Probe GPU/RAM and deploy detached watchdog.py via Jupyter WS"
+    },
+    {
+      "n": 4,
+      "attached_to": "e-ctrl-mux",
+      "text": "Write Included ssh_config and pre-warm single ControlMaster"
+    },
+    {
+      "n": 5,
+      "attached_to": "e-clients-mux",
+      "text": "Multiplex concurrent ssh, VS Code, and -L tunnels over 1 slot"
+    },
+    {
+      "n": 6,
+      "attached_to": "e-sshd-wd",
+      "text": "Fast no-PTY status/extend/guard (~1s) over active mux"
+    },
+    {
+      "n": 7,
+      "attached_to": "e-wd-poll",
+      "text": "Autonomous VM watchdog polls GPU/PTY and posts /unassign on idle or max hours"
+    },
+    {
+      "n": 8,
+      "attached_to": "e-pool-api",
+      "text": "Assign VM or clean stop (tears down mux, unassigns, removes SSH entry)"
+    }
+  ],
+  "legend": {
+    "mode": "explicit",
+    "placement": "inside",
+    "items": [
+      {
+        "id": "leg-existing",
+        "label": "Existing / Runtime",
+        "swatch": {
+          "kind": "fill",
+          "role": "module"
+        }
+      },
+      {
+        "id": "leg-core",
+        "label": "colabctl Core / UI (New)",
+        "swatch": {
+          "kind": "fill",
+          "role": "module-alt"
+        }
+      },
+      {
+        "id": "leg-safeguard",
+        "label": "Safeguards (New)",
+        "swatch": {
+          "kind": "fill",
+          "role": "accent"
+        }
+      },
+      {
+        "id": "leg-main",
+        "label": "UI / CLI / Mux Path",
+        "swatch": {
+          "kind": "line",
+          "role": "arrow",
+          "line_style": "solid",
+          "head": "filled"
+        }
+      },
+      {
+        "id": "leg-control",
+        "label": "Control / Monitor",
+        "swatch": {
+          "kind": "line",
+          "role": "arrow",
+          "line_style": "dashed",
+          "head": "filled"
+        }
+      },
+      {
+        "id": "leg-unassign",
+        "label": "Auto-Unassign (Stop Billing)",
+        "swatch": {
+          "kind": "line",
+          "role": "arrow-accent",
+          "line_style": "solid",
+          "head": "filled"
+        }
+      }
+    ]
+  }
+}

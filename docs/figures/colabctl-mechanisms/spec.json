@@ -1,0 +1,404 @@
+{
+  "meta": {
+    "id": "colabctl-fig2",
+    "title": "colabctl core safeguard mechanisms: SSH multiplexing and VM cost-guard FSM",
+    "system": {
+      "name": "colabctl",
+      "one_liner": "Single-slot OpenSSH ControlMaster multiplexing (before vs. after) and autonomous VM-side cost-guard watchdog state machine"
+    },
+    "family": "systems",
+    "kind": "mechanism",
+    "figure_kind": "mechanism",
+    "venue_style": "acm",
+    "column": "double",
+    "width_pt": 504,
+    "max_height_pt": 216,
+    "template": "mechanism",
+    "mechanism": {
+      "group": "comparison",
+      "groups": [
+        "logic"
+      ],
+      "base": "mixed",
+      "arrangement": "panels-row",
+      "frame_template": "aligned",
+      "delta_marking": "colour"
+    },
+    "direction": "mixed",
+    "panels": 2,
+    "palette": "blue-orange",
+    "font": "helvetica",
+    "step_markers": "none",
+    "language": "en",
+    "version": 1,
+    "caption_draft": "Figure 2. Core safeguards of colabctl. (a) Replacing per-client SSH-over-WS connections with one pre-warmed OpenSSH ControlMaster Unix socket multiplexes terminals, VS Code, -L tunnels, and no-PTY probes over Colab's single slot without HTTP 429. (b) Inside the VM, a detached cost-guard watchdog tracks GPU utilization (<5%), PTY I/O, and hard runtime limits, broadcasting a 2-minute warning (resettable via extend +2h) before autonomously posting $TBE_RUNTIME_ADDR/unassign to halt Compute Unit billing even when the host sleeps or disconnects.",
+    "open_questions": [],
+    "notes": "Composite double-column mechanism figure with two equal-height parts: (a) baseline vs. ours SSH multiplexing comparison and (b) 4-state autonomous VM cost-guard FSM. Shares the exact blue-orange house palette and typography of colabctl-fig1."
+  },
+  "panels": [
+    {
+      "id": "mux-compare",
+      "label": "(a) Single-Slot SSH Multiplexing (Before vs. After)",
+      "panel_label": "(a)",
+      "axis": "part",
+      "view": "structure",
+      "order": 0
+    },
+    {
+      "id": "mux-before",
+      "label": "Without colabctl (Baseline)",
+      "parent": "mux-compare",
+      "axis": "alternatives",
+      "differs": "Each client opens a separate SSH-over-WS slot; concurrent connections hit HTTP 429.",
+      "verdict": "1/3 OK · HTTP 429 on concurrent use",
+      "order": 0
+    },
+    {
+      "id": "mux-after",
+      "label": "With colabctl (ControlMaster Mux)",
+      "parent": "mux-compare",
+      "axis": "alternatives",
+      "differs": "All clients share one pre-warmed ControlMaster Unix socket over a single WS slot.",
+      "verdict": "All concurrent clients OK · 0 HTTP 429",
+      "order": 1
+    },
+    {
+      "id": "watchdog-fsm",
+      "label": "(b) Autonomous VM Cost-Guard Watchdog (In-VM)",
+      "panel_label": "(b)",
+      "axis": "part",
+      "view": "loop",
+      "order": 1
+    }
+  ],
+  "nodes": [
+    {
+      "id": "c-term",
+      "label": "Terminal",
+      "kind": "actor",
+      "panel": "mux-compare",
+      "role": "existing",
+      "legend_ref": "leg-existing",
+      "order": 0
+    },
+    {
+      "id": "c-vscode",
+      "label": "VS Code",
+      "kind": "actor",
+      "panel": "mux-compare",
+      "role": "existing",
+      "legend_ref": "leg-existing",
+      "order": 1
+    },
+    {
+      "id": "c-tunnel",
+      "label": "-L 8188",
+      "kind": "actor",
+      "panel": "mux-compare",
+      "role": "existing",
+      "legend_ref": "leg-existing",
+      "order": 2
+    },
+    {
+      "id": "vm-sshd",
+      "label": "VM sshd",
+      "sublabel": "1 WS slot",
+      "kind": "module",
+      "panel": "mux-compare",
+      "role": "existing",
+      "legend_ref": "leg-existing",
+      "order": 3
+    },
+    {
+      "id": "ws-gate",
+      "label": "Colab SSH-WS",
+      "sublabel": "1-slot limit",
+      "kind": "external",
+      "panel": "mux-before",
+      "role": "baseline",
+      "order": 4
+    },
+    {
+      "id": "mux-box",
+      "label": "ControlMaster Mux",
+      "sublabel": "1 Unix socket · ~1s",
+      "kind": "module",
+      "panel": "mux-after",
+      "role": "novel",
+      "emphasis": "accent",
+      "legend_ref": "leg-safeguard",
+      "order": 5
+    },
+    {
+      "id": "st-active",
+      "label": "Active",
+      "sublabel": "GPU >=5% / PTY / HB",
+      "kind": "state",
+      "panel": "watchdog-fsm",
+      "role": "existing",
+      "legend_ref": "leg-safe",
+      "order": 6
+    },
+    {
+      "id": "st-idle",
+      "label": "Idle Countdown",
+      "sublabel": "idle timer (30m)",
+      "kind": "state",
+      "panel": "watchdog-fsm",
+      "role": "novel",
+      "order": 7
+    },
+    {
+      "id": "st-warn",
+      "label": "Warning (T-2m)",
+      "sublabel": "PTY broadcast",
+      "kind": "state",
+      "panel": "watchdog-fsm",
+      "role": "novel",
+      "emphasis": "accent",
+      "legend_ref": "leg-safeguard",
+      "order": 8
+    },
+    {
+      "id": "st-unassigned",
+      "label": "Unassigned",
+      "sublabel": "0 CU/hr (offline-safe)",
+      "kind": "state",
+      "panel": "watchdog-fsm",
+      "role": "external",
+      "legend_ref": "leg-stop",
+      "order": 9
+    }
+  ],
+  "deltas": [
+    {
+      "id": "d-mux-added",
+      "panel": "mux-after",
+      "target": "mux-box",
+      "change": "added",
+      "marking": "colour"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-b-term",
+      "from": "c-term",
+      "to": "ws-gate",
+      "panel": "mux-before",
+      "label": "slot 1",
+      "kind": "data",
+      "style": "solid",
+      "weight": "main",
+      "legend_ref": "leg-auto"
+    },
+    {
+      "id": "e-b-vsc",
+      "from": "c-vscode",
+      "to": "ws-gate",
+      "panel": "mux-before",
+      "label": "HTTP 429",
+      "kind": "feedback",
+      "style": "solid",
+      "weight": "normal",
+      "legend_ref": "leg-stop"
+    },
+    {
+      "id": "e-b-tun",
+      "from": "c-tunnel",
+      "to": "ws-gate",
+      "panel": "mux-before",
+      "label": "HTTP 429",
+      "kind": "feedback",
+      "style": "solid",
+      "weight": "normal",
+      "legend_ref": "leg-stop"
+    },
+    {
+      "id": "e-b-ok",
+      "from": "ws-gate",
+      "to": "vm-sshd",
+      "panel": "mux-before",
+      "label": "1 OK",
+      "kind": "data",
+      "style": "solid",
+      "weight": "main",
+      "legend_ref": "leg-auto"
+    },
+    {
+      "id": "e-a-term",
+      "from": "c-term",
+      "to": "mux-box",
+      "panel": "mux-after",
+      "kind": "data",
+      "style": "solid",
+      "weight": "normal",
+      "legend_ref": "leg-auto"
+    },
+    {
+      "id": "e-a-vsc",
+      "from": "c-vscode",
+      "to": "mux-box",
+      "panel": "mux-after",
+      "kind": "data",
+      "style": "solid",
+      "weight": "normal",
+      "legend_ref": "leg-auto"
+    },
+    {
+      "id": "e-a-tun",
+      "from": "c-tunnel",
+      "to": "mux-box",
+      "panel": "mux-after",
+      "kind": "data",
+      "style": "solid",
+      "weight": "normal",
+      "legend_ref": "leg-auto"
+    },
+    {
+      "id": "e-a-ws",
+      "from": "mux-box",
+      "to": "vm-sshd",
+      "panel": "mux-after",
+      "label": "1 WS slot",
+      "kind": "data",
+      "style": "solid",
+      "weight": "main",
+      "legend_ref": "leg-auto"
+    },
+    {
+      "id": "t-busy",
+      "from": "st-active",
+      "to": "st-active",
+      "panel": "watchdog-fsm",
+      "kind": "transition",
+      "guard": "poll 15s: busy",
+      "style": "solid",
+      "weight": "normal",
+      "legend_ref": "leg-auto"
+    },
+    {
+      "id": "t-to-idle",
+      "from": "st-active",
+      "to": "st-idle",
+      "panel": "watchdog-fsm",
+      "kind": "transition",
+      "guard": "GPU <5% no PTY",
+      "style": "solid",
+      "weight": "main",
+      "legend_ref": "leg-auto"
+    },
+    {
+      "id": "t-resume",
+      "from": "st-idle",
+      "to": "st-active",
+      "panel": "watchdog-fsm",
+      "kind": "transition",
+      "guard": "GPU / PTY",
+      "style": "solid",
+      "weight": "normal",
+      "legend_ref": "leg-auto"
+    },
+    {
+      "id": "t-idle-warn",
+      "from": "st-idle",
+      "to": "st-warn",
+      "panel": "watchdog-fsm",
+      "kind": "transition",
+      "guard": "idle ≥ 28m",
+      "style": "solid",
+      "weight": "main",
+      "legend_ref": "leg-auto"
+    },
+    {
+      "id": "t-hard-warn",
+      "from": "st-active",
+      "to": "st-warn",
+      "panel": "watchdog-fsm",
+      "kind": "transition",
+      "guard": "hard limit T-2m",
+      "style": "solid",
+      "weight": "normal",
+      "legend_ref": "leg-auto"
+    },
+    {
+      "id": "t-extend",
+      "from": "st-warn",
+      "to": "st-active",
+      "panel": "watchdog-fsm",
+      "kind": "transition",
+      "guard": "extend +2h (user)",
+      "style": "dashed",
+      "weight": "normal",
+      "legend_ref": "leg-control"
+    },
+    {
+      "id": "t-unassign",
+      "from": "st-warn",
+      "to": "st-unassigned",
+      "panel": "watchdog-fsm",
+      "kind": "transition",
+      "guard": "2m elapsed /unassign",
+      "style": "solid",
+      "weight": "main",
+      "legend_ref": "leg-stop"
+    }
+  ],
+  "legend": {
+    "mode": "explicit",
+    "placement": "inside",
+    "items": [
+      {
+        "id": "leg-existing",
+        "label": "Existing / Baseline",
+        "swatch": {
+          "kind": "fill",
+          "role": "module"
+        }
+      },
+      {
+        "id": "leg-safeguard",
+        "label": "colabctl Safeguard",
+        "swatch": {
+          "kind": "fill",
+          "role": "accent"
+        }
+      },
+      {
+        "id": "leg-safe",
+        "label": "Active / Safe",
+        "swatch": {
+          "kind": "fill",
+          "role": "module-alt"
+        }
+      },
+      {
+        "id": "leg-stop",
+        "label": "Blocked / Stop Billing",
+        "swatch": {
+          "kind": "fill",
+          "role": "accent-alt"
+        }
+      },
+      {
+        "id": "leg-auto",
+        "label": "Data / Auto Transition",
+        "swatch": {
+          "kind": "line",
+          "role": "arrow",
+          "line_style": "solid",
+          "head": "filled"
+        }
+      },
+      {
+        "id": "leg-control",
+        "label": "User Control (extend)",
+        "swatch": {
+          "kind": "line",
+          "role": "arrow",
+          "line_style": "dashed",
+          "head": "filled"
+        }
+      }
+    ]
+  }
+}
