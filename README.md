@@ -6,9 +6,10 @@
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776ab?logo=python&logoColor=white)](pyproject.toml)
 [![Version](https://img.shields.io/badge/version-v0.2.0-2563eb)](src/colabctl/__init__.py)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/yunzinan/colabctl/actions/workflows/ci.yml/badge.svg)](https://github.com/yunzinan/colabctl/actions/workflows/ci.yml)
 [![UI](https://img.shields.io/badge/UI-Chromium%20App%20%2F%20Web-0ea5e9)](#local-management-dashboard-colabctl-ui)
 [![i18n](https://img.shields.io/badge/i18n-English%20%7C%20%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-16a34a)](README.zh-CN.md)
-[![Tests](https://img.shields.io/badge/tests-24%20passed-22c55e)](#development--testing)
 
 **English** | [简体中文](README.zh-CN.md)
 
@@ -258,3 +259,9 @@ docs/
 Built with gratitude on top of:
 - [`googlecolab/google-colab-cli`](https://github.com/googlecolab/google-colab-cli) — Official Google Colab CLI and runtime assignment/SSH protocol client.
 - [`mizorewww/colab-account-changer`](https://github.com/mizorewww/colab-account-changer) — Multi-account Keychain switcher and `colab-pool` session/orphan tracker.
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE).
