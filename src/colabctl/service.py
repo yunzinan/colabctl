@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 import re
 import time
@@ -22,12 +23,14 @@ from colabctl.models import (
     OrphanInstance,
     PoolOverview,
     PoolSessionView,
+    QuotaSource,
     StopResult,
     TotalUsage,
     UpResult,
     WatchdogConfig,
     WatchdogLiveStatus,
     normalize_high_mem,
+    resolve_account_quota,
 )
 from colabctl.pool_adapter import RESULT_MARKER, PoolAdapter, PoolAdapterError
 from colabctl.ssh_manager import SshManager, control_socket_path
@@ -157,7 +160,14 @@ class ColabController:
         settings = self.store.load_settings()
         local_map = self.store.load_sessions()
 
-        accounts = [AccountInfo.model_validate(a) for a in raw.get("accounts", [])]
+        accounts: list[AccountInfo] = []
+        for raw_acc in raw.get("accounts", []):
+            acc = AccountInfo.model_validate(raw_acc)
+            if acc.quota_cu is None:
+                acc.quota_cu, acc.quota_source = resolve_account_quota(
+                    acc.name, acc.balance, settings.account_quotas
+                )
+            accounts.append(acc)
         total = TotalUsage.model_validate(raw.get("total", {}))
         vanished_names: list[str] = []
         for v in raw.get("vanished", []):
@@ -708,6 +718,34 @@ else:
             self.pool.set_primary(account, threshold=threshold)
         except PoolAdapterError as exc:
             raise ColabctlError(str(exc)) from exc
+
+    def set_account_quota(
+        self, account: str, quota_cu: float | None
+    ) -> tuple[float, QuotaSource]:
+        """Persist or clear a per-account cycle CU quota override in settings.json."""
+        name = account.strip()
+        if not name:
+            raise ColabctlError("Account name cannot be empty.")
+        settings = self.store.load_settings()
+        if quota_cu is None:
+            settings.account_quotas.pop(name, None)
+        else:
+            val = float(quota_cu)
+            if not math.isfinite(val) or val <= 0:
+                raise ColabctlError("Quota must be a positive number of Compute Units.")
+            settings.account_quotas[name] = round(val, 2)
+        self.store.save_settings(settings)
+
+        balance: float | None = None
+        try:
+            raw = self.pool.list_raw(live=False)
+            for item in raw.get("accounts", []):
+                if item.get("name") == name and item.get("balance") is not None:
+                    balance = float(item["balance"])
+                    break
+        except (PoolAdapterError, ValueError, TypeError):
+            pass
+        return resolve_account_quota(name, balance, settings.account_quotas)
 
     def resolve_ssh_target(self, name: str) -> LocalSessionMeta:
         validate_session_name(name)

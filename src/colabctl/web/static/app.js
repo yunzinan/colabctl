@@ -71,6 +71,32 @@ function fmtCU(v) {
   return Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function fmtQuota(v) {
+  if (v === null || v === undefined || Number.isNaN(Number(v))) return "—";
+  const n = Number(v);
+  const isInt = Math.abs(n - Math.round(n)) < 1e-6;
+  return n.toLocaleString(undefined, {
+    minimumFractionDigits: isInt ? 0 : 2,
+    maximumFractionDigits: isInt ? 0 : 2,
+  });
+}
+
+function inferFallbackQuota(name, balance) {
+  const lowered = String(name || "").trim().toLowerCase();
+  if (/(ultra|20x|2500)/.test(lowered)) return 2500;
+  if (/pro[\s._-]*(\+|plus)/.test(lowered)) return 500;
+  if (/(^|[^a-z])pro([^a-z]|$|\d)/.test(lowered)) return 200;
+  if (/(^|[^a-z])(free|payg)([^a-z]|$|\d)/.test(lowered)) return 100;
+  if (balance !== null && balance !== undefined && Number.isFinite(Number(balance))) {
+    const b = Number(balance);
+    if (b > 1000) return 2500;
+    if (b > 350) return 500;
+    if (b > 120) return 200;
+    return 100;
+  }
+  return 200;
+}
+
 function fmtDuration(seconds) {
   if (seconds === null || seconds === undefined || Number.isNaN(Number(seconds))) return "—";
   const s = Math.max(0, Math.floor(Number(seconds)));
@@ -292,6 +318,10 @@ function refreshLanguageUI() {
   if (!$("#modal-tunnel").classList.contains("hidden")) {
     const s = $("#tunnel-session").value;
     if (s) $("#modal-tunnel-title").textContent = t("modal.tunnel.titleNamed", { name: s });
+  }
+  if (!$("#modal-quota").classList.contains("hidden")) {
+    const acc = $("#quota-account").value;
+    if (acc) $("#modal-quota-title").textContent = t("modal.quota.titleNamed", { name: acc });
   }
   if (!$("#modal-doctor").classList.contains("hidden") && state.lastDoctorReport) {
     renderDoctorReport(state.lastDoctorReport);
@@ -526,10 +556,6 @@ function renderAccounts() {
     if (Boolean(a.primary) !== Boolean(b.primary)) return a.primary ? -1 : 1;
     return (Number(b.balance) || 0) - (Number(a.balance) || 0);
   });
-  const totalBalance = Math.max(
-    1,
-    accounts.reduce((acc, a) => acc + (Number(a.balance) || 0), 0)
-  );
   const grid = $("#accounts-grid");
   if (accounts.length === 0) {
     grid.innerHTML = `<div class="empty-inline">${tHtml("accounts.empty")}</div>`;
@@ -537,10 +563,51 @@ function renderAccounts() {
   }
   grid.innerHTML = accounts
     .map((a) => {
-      const pct = Math.min(100, Math.max(2, Math.round(((Number(a.balance) || 0) / totalBalance) * 100)));
+      const hasBalance = a.balance !== null && a.balance !== undefined && !Number.isNaN(Number(a.balance));
+      const balance = hasBalance ? Number(a.balance) : null;
+      const quota =
+        Number(a.quota_cu) > 0 ? Number(a.quota_cu) : inferFallbackQuota(a.name, balance);
+      const rawPct = hasBalance ? Math.round((balance / quota) * 100) : null;
+      const hasExtra = hasBalance && balance > quota + 0.005;
+      const extraCu = hasExtra ? balance - quota : 0;
+      const isLow = hasBalance && rawPct <= 15;
       const rate = Number(a.hourly_rate || 0);
       const vms = a.assignments ?? a.pool_sessions ?? 0;
       const vmText = vms === 1 ? t("accounts.vmSingular", { count: vms }) : t("accounts.vmPlural", { count: vms });
+      const baseColorCls = rate > 0 ? "amber" : isLow ? "red" : a.primary ? "" : "green";
+
+      let barInnerHtml = "";
+      if (hasExtra) {
+        const baseSharePct = Math.max(25, Math.min(94, (quota / balance) * 100));
+        const extraSharePct = Math.max(6, 100 - baseSharePct);
+        barInnerHtml =
+          `<div class="bar-fill has-rollover ${baseColorCls}" style="width: ${baseSharePct.toFixed(1)}%"></div>` +
+          `<div class="bar-fill-rollover" style="width: ${extraSharePct.toFixed(1)}%"></div>`;
+      } else {
+        const fillPct =
+          hasBalance && balance > 0 ? Math.min(100, Math.max(2, (balance / quota) * 100)) : 0;
+        barInnerHtml = `<div class="bar-fill ${baseColorCls}" style="width: ${fillPct.toFixed(1)}%"></div>`;
+      }
+
+      const barTitle = hasBalance
+        ? hasExtra
+          ? t("accounts.quotaBarOverBaseTitle", {
+              balance: fmtCU(balance),
+              quota: fmtQuota(quota),
+              pct: rawPct,
+              extra: fmtCU(extraCu),
+            })
+          : t("accounts.quotaBarTitle", {
+              balance: fmtCU(balance),
+              quota: fmtQuota(quota),
+              pct: rawPct,
+            })
+        : "";
+      const editTitle =
+        a.quota_source === "custom"
+          ? t("accounts.quotaEditTitleCustom", { quota: fmtQuota(quota) })
+          : t("accounts.quotaEditTitleAuto", { quota: fmtQuota(quota) });
+
       const cls = [
         "account-card",
         a.primary ? "is-primary" : "",
@@ -574,8 +641,27 @@ function renderAccounts() {
           </div>
         </div>
 
-        <div class="bar-track" title="${esc(t("accounts.poolShareTitle", { pct }))}">
-          <div class="bar-fill ${rate > 0 ? "amber" : a.primary ? "" : "green"}" style="width: ${pct}%"></div>
+        <div class="account-quota-wrap">
+          <div class="bar-track" title="${esc(barTitle)}">
+            ${barInnerHtml}
+          </div>
+          <div class="account-quota-row mono">
+            <span class="account-quota-pct ${isLow ? "is-low" : ""}">
+              <span>${hasBalance ? `${rawPct}%` : "—"}</span>
+              ${
+                hasExtra
+                  ? `<span class="quota-rollover-tag">+${fmtCU(extraCu)} ${esc(t("accounts.overBase"))}</span>`
+                  : ""
+              }
+            </span>
+            <button type="button" class="quota-edit-btn mono" data-edit-quota="${esc(a.name)}" title="${esc(editTitle)}">
+              <span>/ ${fmtQuota(quota)} CU</span>
+              <svg viewBox="0 0 24 24" class="icon icon-edit" aria-hidden="true">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4Z" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div class="account-actions">
@@ -1041,6 +1127,19 @@ function openTunnelModal(sessionName) {
   openModal("#modal-tunnel");
 }
 
+function openQuotaModal(accountName) {
+  const acc = ((state.overview && state.overview.accounts) || []).find((x) => x.name === accountName);
+  const currentQuota =
+    acc && Number(acc.quota_cu) > 0
+      ? Number(acc.quota_cu)
+      : inferFallbackQuota(accountName, acc ? acc.balance : null);
+  $("#quota-account").value = accountName;
+  $("#modal-quota-title").textContent = t("modal.quota.titleNamed", { name: accountName });
+  $("#quota-value").value = String(currentQuota);
+  openModal("#modal-quota");
+  setTimeout(() => $("#quota-value").select(), 30);
+}
+
 function confirmDanger({ title, message, buttonLabel = t("common.confirm"), onConfirm }) {
   $("#modal-confirm-title").textContent = title;
   $("#confirm-message").textContent = message;
@@ -1212,6 +1311,47 @@ function bindEvents() {
     });
   }
 
+  // Quota modal presets & auto reset
+  for (const chip of $$("[data-quota-preset]")) {
+    chip.addEventListener("click", () => {
+      $("#quota-value").value = chip.getAttribute("data-quota-preset");
+    });
+  }
+
+  $("#btn-quota-auto").addEventListener("click", async () => {
+    const account = $("#quota-account").value;
+    if (!account) return;
+    closeAllModals();
+    try {
+      const res = await api(`/api/accounts/${encodeURIComponent(account)}/quota`, {
+        method: "POST",
+        body: { quota_cu: null },
+      });
+      toast(t("toast.quotaReset", { account, quota: fmtQuota(res.quota_cu) }), "info");
+      await loadOverview({ live: false, probeGuard: false });
+    } catch (err) {
+      toast(t("toast.quotaFailed", { err: err.message }), "error");
+    }
+  });
+
+  $("#form-quota").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const account = $("#quota-account").value;
+    const val = Number($("#quota-value").value);
+    if (!account || !Number.isFinite(val) || val <= 0) return;
+    closeAllModals();
+    try {
+      const res = await api(`/api/accounts/${encodeURIComponent(account)}/quota`, {
+        method: "POST",
+        body: { quota_cu: val },
+      });
+      toast(t("toast.quotaSaved", { account, quota: fmtQuota(res.quota_cu) }), "success");
+      await loadOverview({ live: false, probeGuard: false });
+    } catch (err) {
+      toast(t("toast.quotaFailed", { err: err.message }), "error");
+    }
+  });
+
   // Form submissions
   $("#form-launch").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -1341,6 +1481,10 @@ function bindEvents() {
     }
     if (btn.dataset.launchAccount) {
       openLaunchModal({ account: btn.dataset.launchAccount });
+      return;
+    }
+    if (btn.dataset.editQuota) {
+      openQuotaModal(btn.dataset.editQuota);
       return;
     }
     if (btn.dataset.setPrimary) {

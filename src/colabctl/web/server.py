@@ -65,6 +65,10 @@ class SetPrimaryRequest(BaseModel):
     threshold: float | None = Field(default=None, ge=0.0)
 
 
+class SetAccountQuotaRequest(BaseModel):
+    quota_cu: float | None = Field(default=None, gt=0.0, le=1_000_000.0)
+
+
 class ReapOrphanRequest(BaseModel):
     account: str
     endpoint: str
@@ -222,6 +226,19 @@ def create_app(
         except ColabctlError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"ok": True, "primary": req.account}
+
+    @app.post("/api/accounts/{name}/quota")
+    def api_set_account_quota(name: str, req: SetAccountQuotaRequest) -> dict[str, Any]:
+        try:
+            quota_cu, quota_source = ctrl.set_account_quota(name, req.quota_cu)
+        except ColabctlError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {
+            "ok": True,
+            "account": name,
+            "quota_cu": quota_cu,
+            "quota_source": quota_source,
+        }
 
     # ------------------------------------------------------------------
     # Sessions Lifecycle (async jobs for slow cloud calls)

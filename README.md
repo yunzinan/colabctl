@@ -224,7 +224,7 @@ colabctl ui --lang zh                            # Force initial language (auto 
 ## Development & Testing
 
 ```bash
-# Run the full unit + FastAPI security & lifecycle test suite (24 tests)
+# Run the full unit + FastAPI security & lifecycle test suite (26 tests)
 uv run --extra dev pytest -v
 ```
 

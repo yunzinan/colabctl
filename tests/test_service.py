@@ -313,3 +313,44 @@ def test_single_shape_gpus_strip_high_mem(tmp_path: Path) -> None:
     assert "--high-mem" not in captured_argv[0]
     assert "--high-mem" not in captured_argv[1]
     assert "--high-mem" in captured_argv[2]
+
+
+def test_account_quota_inference_and_custom_override(tmp_path: Path) -> None:
+    from colabctl.models import infer_account_quota
+
+    # Plan alias inference (immune to rollover or burned-down balance)
+    assert infer_account_quota("ultra", 2500.0) == 2500.0
+    assert infer_account_quota("ultra", 120.0) == 2500.0
+    assert infer_account_quota("ai-20x", 400.0) == 2500.0
+    assert infer_account_quota("pro1", 222.52) == 200.0
+    assert infer_account_quota("pro2", 50.0) == 200.0
+    assert infer_account_quota("pro-plus", 480.0) == 500.0
+    assert infer_account_quota("proplus", 510.0) == 500.0
+    # Words merely starting with "pro" (like "project" / "prod") fall back to balance tiers
+    assert infer_account_quota("project", 95.0) == 100.0
+    assert infer_account_quota("prod", 2200.0) == 2500.0
+    assert infer_account_quota("work", 480.0) == 500.0
+    assert infer_account_quota("work", 222.52) == 200.0
+
+    # Controller populates inferred quotas and persists custom overrides
+    ctrl, _, _ = _make_controller(tmp_path)
+    ov = ctrl.list_overview(live=False)
+    by_name = {a.name: a for a in ov.accounts}
+    assert by_name["ultra"].quota_cu == 2500.0
+    assert by_name["ultra"].quota_source == "inferred"
+    assert by_name["pro1"].quota_cu == 200.0
+    assert by_name["pro1"].quota_source == "inferred"
+
+    # Override pro1 to 100 CU (e.g. Pro 1x plan) -> persisted in settings.json
+    quota, src = ctrl.set_account_quota("pro1", 100.0)
+    assert (quota, src) == (100.0, "custom")
+    ov2 = ctrl.list_overview(live=False)
+    by_name2 = {a.name: a for a in ov2.accounts}
+    assert by_name2["pro1"].quota_cu == 100.0
+    assert by_name2["pro1"].quota_source == "custom"
+
+    # Reset back to auto-inferred
+    quota_auto, src_auto = ctrl.set_account_quota("pro1", None)
+    assert (quota_auto, src_auto) == (200.0, "inferred")
+    ov3 = ctrl.list_overview(live=False)
+    assert {a.name: a for a in ov3.accounts}["pro1"].quota_source == "inferred"

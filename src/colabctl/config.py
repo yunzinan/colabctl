@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from colabctl.models import LocalSessionMeta
 
@@ -32,6 +32,7 @@ class AppSettings(BaseModel):
     identity_file: str | None = None
     assign_timeout_s: int = 120
     assign_retries: int = 2
+    account_quotas: dict[str, float] = Field(default_factory=dict)
 
 
 class AppPaths:

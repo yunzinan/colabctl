@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import threading
 import time
 from dataclasses import dataclass, field
@@ -16,12 +17,14 @@ from colabctl.models import (
     OrphanInstance,
     PoolOverview,
     PoolSessionView,
+    QuotaSource,
     StopResult,
     TotalUsage,
     UpResult,
     WatchdogConfig,
     WatchdogLiveStatus,
     normalize_high_mem,
+    resolve_account_quota,
 )
 from colabctl.service import ColabctlError, validate_gpu, validate_session_name
 
@@ -72,6 +75,7 @@ class DemoColabController:
         self._primary = "ultra"
         self._threshold = 5.0
         self._ep_seq = 100
+        self._account_quotas: dict[str, float] = {}
         self._accounts: dict[str, _DemoAccount] = {
             "ultra": _DemoAccount(
                 name="ultra",
@@ -263,11 +267,16 @@ class DemoColabController:
                 rate += len(acc_orphans) * 1.96
                 assignments = len(acc_sessions) + len(acc_orphans)
                 hrs_rem = (acc.balance / rate) if rate > 0 else None
+                quota_cu, quota_source = resolve_account_quota(
+                    acc.name, acc.balance, self._account_quotas
+                )
                 accounts.append(
                     AccountInfo(
                         name=acc.name,
                         email=acc.email,
                         balance=round(acc.balance, 2),
+                        quota_cu=quota_cu,
+                        quota_source=quota_source,
                         hourly_rate=round(rate, 2),
                         hours_remaining=round(hrs_rem, 1) if hrs_rem is not None else None,
                         assignments=assignments,
@@ -544,6 +553,22 @@ class DemoColabController:
             self._primary = account
             if threshold is not None:
                 self._threshold = threshold
+
+    def set_account_quota(
+        self, account: str, quota_cu: float | None
+    ) -> tuple[float, QuotaSource]:
+        with self._lock:
+            acc = self._accounts.get(account)
+            if acc is None:
+                raise ColabctlError(f"Account '{account}' not found.")
+            if quota_cu is None:
+                self._account_quotas.pop(account, None)
+            else:
+                val = float(quota_cu)
+                if not math.isfinite(val) or val <= 0:
+                    raise ColabctlError("Quota must be a positive number of Compute Units.")
+                self._account_quotas[account] = round(val, 2)
+            return resolve_account_quota(acc.name, acc.balance, self._account_quotas)
 
     def resolve_ssh_target(self, name: str) -> LocalSessionMeta:
         validate_session_name(name)

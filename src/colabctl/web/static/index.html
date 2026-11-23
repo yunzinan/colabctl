@@ -462,6 +462,40 @@
     </div>
   </div>
 
+  <!-- Account Quota Modal -->
+  <div id="modal-quota" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-quota-title">
+    <div class="modal-card modal-card-sm">
+      <div class="modal-header">
+        <h3 id="modal-quota-title" data-i18n="modal.quota.title">Account Cycle Quota</h3>
+        <button class="modal-close" data-close-modal data-i18n-aria="common.close" aria-label="Close">×</button>
+      </div>
+      <form id="form-quota" class="modal-body">
+        <input type="hidden" name="account" id="quota-account" />
+        <div class="field">
+          <span class="field-label" data-i18n="modal.quota.presets">Plan Presets</span>
+          <div class="preset-chips">
+            <button type="button" class="chip" data-quota-preset="100" data-i18n="modal.quota.preset100">100 CU · Pro 1x</button>
+            <button type="button" class="chip" data-quota-preset="200" data-i18n="modal.quota.preset200">200 CU · Pro</button>
+            <button type="button" class="chip" data-quota-preset="500" data-i18n="modal.quota.preset500">500 CU · Pro+</button>
+            <button type="button" class="chip" data-quota-preset="2500" data-i18n="modal.quota.preset2500">2,500 CU · Ultra 20x</button>
+          </div>
+        </div>
+        <label class="field">
+          <span class="field-label" data-i18n="modal.quota.cuLabel">Quota Baseline (CU)</span>
+          <input type="number" name="quota_cu" id="quota-value" min="1" max="1000000" step="any" required />
+          <span class="field-hint" data-i18n="modal.quota.cuHint">Balance above this baseline is highlighted as extra capacity (may come from rollover, pay-as-you-go top-ups, or a higher plan).</span>
+        </label>
+        <div class="modal-footer modal-footer-split">
+          <button type="button" id="btn-quota-auto" class="btn btn-ghost btn-sm" data-i18n="modal.quota.autoReset">Reset to Auto</button>
+          <div class="modal-footer-right">
+            <button type="button" class="btn btn-ghost" data-close-modal data-i18n="common.cancel">Cancel</button>
+            <button type="submit" class="btn btn-primary" data-i18n="modal.quota.submit">Save Quota</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Confirm Modal -->
   <div id="modal-confirm" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-confirm-title">
     <div class="modal-card modal-card-xs">

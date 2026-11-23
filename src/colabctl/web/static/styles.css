@@ -18,6 +18,9 @@
   --green: #22c55e;
   --green-soft: rgba(34, 197, 94, 0.14);
 
+  --cyan: #06b6d4;
+  --cyan-soft: rgba(6, 182, 212, 0.16);
+
   --amber: #f59e0b;
   --amber-hover: #d97706;
   --amber-soft: rgba(245, 158, 11, 0.14);
@@ -51,6 +54,9 @@ html[data-theme="light"] {
 
   --green: #16a34a;
   --green-soft: rgba(22, 163, 74, 0.12);
+
+  --cyan: #0891b2;
+  --cyan-soft: rgba(8, 145, 178, 0.12);
 
   --amber: #d97706;
   --amber-hover: #b45309;
@@ -643,8 +649,16 @@ code {
   color: var(--text-secondary);
 }
 
+.account-quota-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
 .bar-track {
-  height: 5px;
+  display: flex;
+  align-items: stretch;
+  height: 6px;
   border-radius: 999px;
   background: var(--surface-2);
   overflow: hidden;
@@ -655,6 +669,11 @@ code {
   border-radius: 999px;
   background: var(--primary);
   transition: width 0.25s ease;
+  flex-shrink: 0;
+}
+
+.bar-fill.has-rollover {
+  border-radius: 999px 0 0 999px;
 }
 
 .bar-fill.green {
@@ -663,6 +682,96 @@ code {
 
 .bar-fill.amber {
   background: var(--amber);
+}
+
+.bar-fill.red {
+  background: var(--red);
+}
+
+.bar-fill-rollover {
+  height: 100%;
+  background: var(--cyan);
+  border-left: 1.5px solid var(--surface);
+  border-radius: 0 999px 999px 0;
+  transition: width 0.25s ease;
+  flex-shrink: 0;
+}
+
+.account-quota-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.account-quota-pct {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-secondary);
+}
+
+.account-quota-pct.is-low {
+  color: var(--red);
+  font-weight: 600;
+}
+
+.quota-rollover-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  height: 17px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: var(--cyan-soft);
+  color: var(--cyan);
+  border: 1px solid color-mix(in srgb, var(--cyan) 32%, transparent);
+}
+
+.quota-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 5px;
+  margin-right: -5px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: color 0.14s, background 0.14s, border-color 0.14s;
+}
+
+.quota-edit-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.quota-edit-btn .icon-edit {
+  width: 11px;
+  height: 11px;
+  opacity: 0.55;
+  transition: opacity 0.14s;
+}
+
+.quota-edit-btn:hover .icon-edit {
+  opacity: 1;
+}
+
+.modal-footer-split {
+  justify-content: space-between;
+}
+
+.modal-footer-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .account-actions {

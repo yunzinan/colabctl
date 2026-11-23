@@ -243,3 +243,51 @@ def test_default_lang_injection(tmp_path: Path) -> None:
     r = client.get("/?token=tok-zh")
     assert r.status_code == 200
     assert 'defaultLang: "zh-CN"' in r.text
+
+
+def test_api_account_quota_override_and_demo_mode(tmp_path: Path) -> None:
+    # Real controller: overview includes inferred quotas, POST updates & resets
+    ctrl, _, _ = _make_controller(tmp_path)
+    app = create_app(ctrl, auth_token="tok-q")
+    headers = {TOKEN_HEADER: "tok-q"}
+    with TestClient(app) as client:
+        r_idx = client.get("/?token=tok-q")
+        assert 'id="modal-quota"' in r_idx.text
+
+        ov = client.get("/api/overview", headers=headers).json()["overview"]
+        accs = {a["name"]: a for a in ov["accounts"]}
+        assert accs["ultra"]["quota_cu"] == 2500.0
+        assert accs["pro1"]["quota_cu"] == 200.0
+
+        r_set = client.post("/api/accounts/pro1/quota", headers=headers, json={"quota_cu": 500})
+        assert r_set.status_code == 200
+        assert r_set.json() == {
+            "ok": True,
+            "account": "pro1",
+            "quota_cu": 500.0,
+            "quota_source": "custom",
+        }
+        ov2 = client.get("/api/overview", headers=headers).json()["overview"]
+        assert {a["name"]: a for a in ov2["accounts"]}["pro1"]["quota_cu"] == 500.0
+
+        r_reset = client.post("/api/accounts/pro1/quota", headers=headers, json={"quota_cu": None})
+        assert r_reset.status_code == 200
+        assert r_reset.json()["quota_cu"] == 200.0
+        assert r_reset.json()["quota_source"] == "inferred"
+
+    # Demo controller also supports per-account quota inspection & editing
+    demo_ctrl = DemoColabController(simulated_delay_s=0.0)
+    demo_app = create_app(demo_ctrl, auth_token="tok-dq", demo_mode=True)
+    d_headers = {TOKEN_HEADER: "tok-dq"}
+    with TestClient(demo_app) as client:
+        d_ov = client.get("/api/overview", headers=d_headers).json()["overview"]
+        d_accs = {a["name"]: a for a in d_ov["accounts"]}
+        assert d_accs["ultra"]["quota_cu"] == 2500.0
+        assert d_accs["pro1"]["quota_cu"] == 200.0
+        assert d_accs["pro1"]["balance"] == 222.52  # above 200 CU baseline
+        assert d_accs["pro2"]["quota_cu"] == 200.0
+
+        r_dset = client.post("/api/accounts/pro1/quota", headers=d_headers, json={"quota_cu": 100})
+        assert r_dset.status_code == 200
+        assert r_dset.json()["quota_cu"] == 100.0
+        assert r_dset.json()["quota_source"] == "custom"

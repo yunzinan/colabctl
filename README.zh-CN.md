@@ -224,7 +224,7 @@ colabctl ui --lang zh                            # 指定初始语言（auto | z
 ## 开发与测试
 
 ```bash
-# 运行完整单元测试与 FastAPI 安全/生命周期集成测试（24 项）
+# 运行完整单元测试与 FastAPI 安全/生命周期集成测试（26 项）
 uv run --extra dev pytest -v
 ```
 

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime
+import math
+import re
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -12,6 +14,12 @@ VALID_GPUS: tuple[str, ...] = ("none", "t4", "l4", "g4", "a100", "h100")
 # Accelerators that only offer a single fixed host shape on Colab; passing
 # `--high-mem` (`shape=hm`) is ignored for L4 and rejected with HTTP 400 for G4.
 SINGLE_SHAPE_GPUS: tuple[str, ...] = ("l4", "g4")
+QuotaSource = Literal["custom", "inferred"]
+
+_ULTRA_NAME_RE = re.compile(r"(ultra|20x|2500)")
+_PRO_PLUS_NAME_RE = re.compile(r"pro[\s._-]*(\+|plus)")
+_PRO_NAME_RE = re.compile(r"(^|[^a-z])pro([^a-z]|$|\d)")
+_FREE_NAME_RE = re.compile(r"(^|[^a-z])(free|payg)([^a-z]|$|\d)")
 
 
 def normalize_high_mem(gpu: str, high_mem: bool) -> bool:
@@ -21,10 +29,52 @@ def normalize_high_mem(gpu: str, high_mem: bool) -> bool:
     return gpu.strip().lower() not in SINGLE_SHAPE_GPUS
 
 
+def infer_account_quota(name: str, balance: float | None = None) -> float:
+    """Infer an account's per-cycle Compute Unit quota baseline from alias/balance.
+
+    Google Colab's ccu-info API only exposes currentBalance (which may include
+    rollover, pay-as-you-go top-ups, or credits from other plans), not the
+    plan's recurring allowance.
+    """
+    lowered = name.strip().lower()
+    if _ULTRA_NAME_RE.search(lowered):
+        return 2500.0
+    if _PRO_PLUS_NAME_RE.search(lowered):
+        return 500.0
+    if _PRO_NAME_RE.search(lowered):
+        return 200.0
+    if _FREE_NAME_RE.search(lowered):
+        return 100.0
+    if balance is not None and math.isfinite(balance):
+        if balance > 1000.0:
+            return 2500.0
+        if balance > 350.0:
+            return 500.0
+        if balance > 120.0:
+            return 200.0
+        return 100.0
+    return 200.0
+
+
+def resolve_account_quota(
+    name: str,
+    balance: float | None = None,
+    custom_quotas: dict[str, float] | None = None,
+) -> tuple[float, QuotaSource]:
+    """Return (effective_quota_cu, source) using custom override if configured."""
+    if custom_quotas and name in custom_quotas:
+        val = custom_quotas[name]
+        if isinstance(val, (int, float)) and math.isfinite(val) and val > 0:
+            return round(float(val), 2), "custom"
+    return infer_account_quota(name, balance), "inferred"
+
+
 class AccountInfo(BaseModel):
     name: str
     email: str | None = None
     balance: float | None = None
+    quota_cu: float | None = None
+    quota_source: QuotaSource | None = None
     hourly_rate: float | None = None
     hours_remaining: float | None = None
     assignments: int | None = None
